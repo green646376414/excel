@@ -1,0 +1,98 @@
+https://www.jb51.net/article/25568.htm
+这个function对于普通的对象转换是足够的，但是如果出现对象内部又包含子对象的情形就不能支持了。
+例如我有这样的一个form表单：
+复制代码代码如下:
+
+<form id="testform">
+<input type="text" name="name" value="dummyName" id="name">
+<input type="text" name="category.id" value="categoryId" id="name">
+<input type="text" name="category.name" value="categoryName" id="name">
+</form>
+
+对应到server端上的domain class是这样的：
+复制代码代码如下:
+
+public class DummyProduct {
+
+private DummyCategory category;
+private String name;
+
+public DummyCategory getCategory() {
+return category;
+}
+public void setCategory(DummyCategory category) {
+this.category = category;
+}
+public String getName() {
+return name;
+}
+public void setName(String name) {
+this.name = name;
+}
+
+}
+public class DummyCategory {
+private String id;
+private String name;
+public String getId() {
+return id;
+}
+public void setId(String id) {
+this.id = id;
+}
+public String getName() {
+return name;
+}
+public void setName(String name) {
+this.name = name;
+}
+}
+
+如果想把表单数据序列化成跟server端domain class匹配的json字符串，就可以使用我下面的这个扩展
+复制代码代码如下:
+
+/** @serializedParams looks like "prop1=value1&prop2=value2".  
+Nested property like 'prop.subprop=value' is also supported **/
+function paramString2obj (serializedParams) {
+
+var obj={};
+function evalThem (str) {
+var attributeName = str.split("=")[0];
+var attributeValue = str.split("=")[1];
+if(!attributeValue){
+return ;
+}
+
+var array = attributeName.split(".");
+for (var i = 1; i < array.length; i++) {
+var tmpArray = Array();
+tmpArray.push("obj");
+for (var j = 0; j < i; j++) {
+tmpArray.push(array[j]);
+};
+var evalString = tmpArray.join(".");
+// alert(evalString);
+if(!eval(evalString)){
+eval(evalString+"={};");
+}
+};
+eval("obj."+attributeName+"='"+attributeValue+"';");
+
+};
+var properties = serializedParams.split("&");
+for (var i = 0; i < properties.length; i++) {
+evalThem(properties[i]);
+};
+return obj;
+}
+$.fn.form2json = function(){
+var serializedParams = this.serialize();
+var obj = paramString2obj(serializedParams);
+return JSON.stringify(obj);
+}
+
+使用起来大概像这个样子:
+复制代码代码如下:
+
+var json = $("#testform").form2json();
+alert(json);
